@@ -15,7 +15,13 @@ module Delayed
     
           priority = args.first || Delayed::Worker.default_priority
           run_at   = args[1]
-          self.create(:payload_object => object, :priority => priority.to_i, :run_at => run_at)
+          if Delayed::Worker.delay_jobs
+            self.create(:payload_object => object, :priority => priority.to_i, :run_at => run_at)
+          else
+            Delayed::Job.new(:payload_object => object).tap do |job|
+              job.invoke_job
+            end
+          end
         end
 
         def reserve(worker, max_run_time = Worker.max_run_time)
