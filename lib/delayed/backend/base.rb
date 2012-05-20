@@ -18,9 +18,8 @@ module Delayed
           if Delayed::Worker.delay_jobs
             self.create(:payload_object => object, :priority => priority.to_i, :run_at => run_at)
           else
-            Delayed::Job.new(:payload_object => object).tap do |job|
-              job.invoke_job
-            end
+            job = Delayed::Job.create(:payload_object => object)
+            job.invoke_job
           end
         end
 
