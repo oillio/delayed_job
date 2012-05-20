@@ -8,18 +8,28 @@ module Delayed
       module ClassMethods
         # Add a job to the queue
         def enqueue(*args)
-          object = args.shift
-          unless object.respond_to?(:perform)
+          options = {
+            :priority => Delayed::Worker.default_priority
+          }
+          
+          if args.size == 1 && args.first.is_a?(Hash)
+            options.merge!(args.first)
+          else
+            options[:payload_object] = args.shift
+            options[:priority] = args.first || options[:priority]
+            options[:run_at] = args[1]
+          end
+
+          unless options[:payload_object].respond_to?(:perform)
             raise ArgumentError, 'Cannot enqueue items which do not respond to perform'
           end
-    
-          priority = args.first || Delayed::Worker.default_priority
-          run_at   = args[1]
+
           if Delayed::Worker.delay_jobs
-            self.create(:payload_object => object, :priority => priority.to_i, :run_at => run_at)
+            self.create(options)
           else
-            job = Delayed::Job.create(:payload_object => object)
-            job.invoke_job
+            Delayed::Job.new(:payload_object => options[:payload_object]).tap do |job|
+              job.invoke_job
+            end
           end
         end
 
@@ -64,6 +74,7 @@ module Delayed
       end
 
       def payload_object=(object)
+        @payload_object = object
         self['handler'] = object.to_yaml
       end
       
